@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { validateEnv } from "@/lib/config";
-
-// Validate environment at startup
-validateEnv();
 
 export const metadata: Metadata = {
   title: "Cite — Citation Generator",
