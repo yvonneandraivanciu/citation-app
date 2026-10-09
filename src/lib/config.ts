@@ -14,12 +14,17 @@ export interface EnvConfig {
   sentryDsn?: string;
 }
 
+let cachedConfig: EnvConfig | null = null;
+
 /**
  * Validates all required environment variables are set. Throws an error with
  * a clear message if any are missing, so deployment fails fast rather than
  * having the app silently degrade at runtime.
  */
 export function validateEnv(): EnvConfig {
+  // Return cached config if already validated
+  if (cachedConfig) return cachedConfig;
+
   const required = {
     jwtSecret: process.env.JWT_SECRET,
     databaseUrl: process.env.DATABASE_URL,
@@ -37,7 +42,7 @@ export function validateEnv(): EnvConfig {
     );
   }
 
-  return {
+  cachedConfig = {
     jwtSecret: required.jwtSecret!,
     databaseUrl: required.databaseUrl!,
     databaseUrlUnpooled: process.env.DATABASE_URL_UNPOOLED,
@@ -47,10 +52,6 @@ export function validateEnv(): EnvConfig {
     emailFrom: process.env.EMAIL_FROM,
     sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   };
-}
 
-// Validate at module load time so deployment fails fast
-if (typeof window === "undefined") {
-  // Only validate on server side, not in browser bundles
-  validateEnv();
+  return cachedConfig;
 }
