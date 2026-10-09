@@ -65,8 +65,10 @@ export function parseCanliiUrl(url: string): ParsedCanliiUrl | null {
 // At most one in-flight request, each spaced >= MIN_REQUEST_INTERVAL_MS after
 // the previous one starts. A module-level queue is enough for a single Next.js
 // server process; it does NOT coordinate across multiple server instances —
-// if this app is ever deployed with more than one instance, move this to a
-// shared store (e.g. a DB row) instead.
+// if this app is ever deployed with more than one instance (e.g. Vercel autoscaling
+// or multi-region), move this to a shared store (e.g. Postgres advisory lock or
+// a lock table row) to ensure the per-second rate limits are truly enforced
+// globally. The daily usage counter in db.ts IS already shared/distributed.
 let queue: Promise<unknown> = Promise.resolve();
 let lastCallAt = 0;
 
@@ -189,12 +191,10 @@ async function requestCanliiCase(parsed: ParsedCanliiUrl, apiKey: string): Promi
         throw new Error(`CanLII API responded ${res.status}`);
       }
 
-      const data = (await res.json()) as Partial<CanliiCaseMetadata> | null;
-      // Some not-found cases come back as 200 with an empty/incomplete body
-      // rather than a 404 — treat a response missing the essential `title`
-      // field the same way: a confirmed miss, not an error.
-      if (!data || !data.title) return null;
-      return data as CanliiCaseMetadata;
+      const data = await res.json();
+      // Validate response has all required fields — type guard prevents casting errors
+      if (!isCanliiCaseMetadata(data)) return null;
+      return data;
     } catch (err) {
       lastError = err;
       if (attempt === 1) {
@@ -218,4 +218,22 @@ export function splitStyleOfCause(title: string): { plaintiff: string; defendant
   const [, plaintiff, connectorRaw, defendant] = m;
   const connector: "c." | "v." = connectorRaw.toLowerCase() === "v." ? "v." : "c.";
   return { plaintiff: plaintiff.trim(), defendant: defendant.trim(), connector };
+}
+
+/** Type guard to verify a CanLII API response has all required fields. */
+function isCanliiCaseMetadata(data: unknown): data is CanliiCaseMetadata {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.databaseId === "string" &&
+    typeof obj.caseId === "string" &&
+    typeof obj.url === "string" &&
+    typeof obj.title === "string" &&
+    typeof obj.citation === "string" &&
+    (obj.language === "en" || obj.language === "fr") &&
+    typeof obj.docketNumber === "string" &&
+    typeof obj.decisionDate === "string" &&
+    typeof obj.keywords === "string" &&
+    typeof obj.concatenatedId === "string"
+  );
 }

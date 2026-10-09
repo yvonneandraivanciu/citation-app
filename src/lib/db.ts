@@ -281,14 +281,30 @@ export async function setCanliiNotFoundEntry(key: string): Promise<void> {
 // on /api/scrape-qc doesn't protect this shared 5,000/day grant on its own.
 
 export async function getCanliiUsageToday(): Promise<number> {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = getCanliiDateKey();
   const [row] = await getDb().select().from(canliiUsage).where(eq(canliiUsage.date, date)).limit(1);
   return row?.count ?? 0;
 }
 
+/** Gets the date key for CanLII usage tracking in America/Toronto timezone (CanLII's jurisdiction). */
+function getCanliiDateKey(): string {
+  const now = new Date();
+  const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = dateFormatter.formatToParts(now);
+  const year = parts.find(p => p.type === "year")?.value;
+  const month = parts.find(p => p.type === "month")?.value;
+  const day = parts.find(p => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
+
 /** Atomically increments today's counter and returns the new total. Call once per real request actually sent to CanLII. */
 export async function incrementCanliiUsage(): Promise<number> {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = getCanliiDateKey();
   const [row] = await getDb()
     .insert(canliiUsage)
     .values({ date, count: 1 })

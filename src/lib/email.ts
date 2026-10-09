@@ -1,7 +1,14 @@
 import { Resend } from "resend";
 import { escapeHtml } from "./security";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured. Email sending is unavailable.");
+  }
+  return new Resend(apiKey);
+}
+
 const FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
 /**
@@ -16,6 +23,7 @@ function throwOnResendError(result: { error: { message: string; name?: string } 
 }
 
 export async function sendVerificationEmail(email: string, name: string, code: string) {
+  const resend = getResend();
   const result = await resend.emails.send({
     from: FROM,
     to: email,
@@ -36,6 +44,7 @@ export async function sendVerificationEmail(email: string, name: string, code: s
 }
 
 export async function sendPasswordResetEmail(email: string, name: string, token: string) {
+  const resend = getResend();
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const link = `${APP_URL}/reset-password?token=${token}`;
   const result = await resend.emails.send({
