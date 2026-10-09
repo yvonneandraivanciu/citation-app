@@ -9,4 +9,8 @@ module.exports = withSentryConfig(nextConfig, {
   // Quiet locally; verbose in CI where build logs are actually useful.
   silent: !process.env.CI,
   authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Disable source map upload to avoid Turbopack/CommonJS conflicts
+  // Sentry still catches errors at runtime
+  disableClientWebpackPlugin: true,
+  disableServerWebpackPlugin: true,
 });
