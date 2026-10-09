@@ -1,0 +1,25 @@
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+.neon
+
+# Dependencies & build output
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Old flat-file database (now in Postgres) — contains real account data
+data/
+
+# Local tooling
+.agents/
+skills-lock.json
+.vercel
+.DS_Store
+coverage/
+
+# Pre-fix copies of edited files (safe to delete)
+.backup-before-fixes/
